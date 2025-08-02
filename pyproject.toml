@@ -1,0 +1,14 @@
+[project]
+name = "cypher-glue"
+version = "0.1.0"
+description = "A reusable Cypher query composer that joins reusable query fragments with a little care."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.7",
+]
