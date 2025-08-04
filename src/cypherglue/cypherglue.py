@@ -26,12 +26,20 @@ class Extends:
     name: str
     elements: "ReturnElements"
 
-    def __repr__(self):
-        return f"Extends({self.name!r}, {self.elements!r})"
 
-
+@dataclass(frozen=True)
 class Verbatim:
-    """Return-element for returning a literal key, ex.: `(".*", Verbatim")` renders as ".*" only, no value expression."""
+    """Verbatim Cypher expression
+
+    As a ReturnElement for returning a literal key, ex.: `(".*", Verbatim)` or `(".*", Verbatim(".*"))`,
+    renders as ".*" only.
+    As filter expression: `filter_by={"movie": Verbatim("NOT (movie)<-[:REVIEWED]-()")}`.
+    """
+
+    expression: str
+
+    def __str__(self):
+        return self.expression
 
 
 ReturnElement = (
@@ -699,6 +707,8 @@ class CypherGlue:
                     # inheriting an object/structure without value and alias, ex. "*", ".*", or ".uid", from tuple/mapping
                     elif value is Verbatim:
                         lines.append(f"{spacing}{key}{comma}")
+                    elif isinstance(value, Verbatim):
+                        lines.append(f"{spacing}{value!s}{comma}")
 
                     # simple "key: value" pair
                     elif level == 1:
@@ -725,10 +735,12 @@ class CypherGlue:
         for i, item in enumerate(items):
             if isinstance(item, str):
                 key, values = item, None
+            elif isinstance(item, Verbatim):
+                continue
             else:
                 key, *values = item
 
-            if values and values[0] is Verbatim:
+            if values and (values[0] is Verbatim or isinstance(values[0], Verbatim)):
                 # keep rendering `{"root.uid": Verbatim}` to "root.uid," literal
                 continue
 
