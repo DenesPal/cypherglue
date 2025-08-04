@@ -1,4 +1,4 @@
-""" A reusable Cypher query composer that joins reusable query fragments with a little care."""
+"""A reusable Cypher query composer that joins reusable query fragments with a little care."""
 
 import itertools
 import re
@@ -19,12 +19,12 @@ __all__ = [
 ]
 
 
+@dataclass(frozen=True)
 class Extends:
     """Return-element for extending a node/structure with `name`, ex.: "RETURN name { elements.... } AS key"."""
 
-    def __init__(self, name: str, elements: "ReturnElements"):
-        self.name = name
-        self.elements = elements
+    name: str
+    elements: "ReturnElements"
 
     def __repr__(self):
         return f"Extends({self.name!r}, {self.elements!r})"
