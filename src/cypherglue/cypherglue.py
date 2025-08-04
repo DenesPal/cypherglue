@@ -318,12 +318,12 @@ class CypherGlue:
                 )
 
             # Render query snippet, receiving updated params and expressions for RETURN clause
-            query, params, returns = snippet.render(params)
+            query, params_update, returns = snippet.render(params)
             query_parts.append(query)  # query fragment
             available_vars.update(
                 snippet.defines
             )  # query variables defined by the query fragment
-            final_params.update(params)  # added/updated query parameters
+            final_params.update(params_update)  # added/updated query parameters
 
             # Collect return expressions related to the fragment
             if "*" in returns:
