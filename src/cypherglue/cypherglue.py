@@ -527,8 +527,10 @@ class CypherGlue:
 
         query_parts = []
 
-        if order_clauses:
+        if order_clauses or skip or limit:
             query_parts.append("WITH DISTINCT *")
+
+        if order_clauses:
             query_parts.append("ORDER BY")
             query_parts.append(", ".join(order_clauses))
 
