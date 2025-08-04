@@ -348,8 +348,8 @@ class CypherGlue:
                     query_parts.append(filter_clause)
                     final_params.update(filter_params)
 
-            # Append ORDER BY, SKIP and LIMIT clauses if applicable
-            if snippet.allow_pagination and order_by:
+            # Append ORDER BY, SKIP and LIMIT clauses if applicable (but only if done with filtering)
+            if not remaining_filters and snippet.allow_pagination and order_by:
                 order_clause = self._render_order_pagination_clauses(
                     order_by, available_vars, skip, limit
                 )
