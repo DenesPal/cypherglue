@@ -120,7 +120,7 @@ class Snippet:
             object.__setattr__(self, "returns", MappingProxyType(returns))
         elif isinstance(returns, str):
             object.__setattr__(self, "returns", (returns,))
-        elif isinstance(returns, tuple):
+        elif isinstance(returns, (tuple, list)):
             object.__setattr__(self, "returns", tuple(returns))
 
         object.__setattr__(
