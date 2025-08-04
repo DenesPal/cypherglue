@@ -9,6 +9,16 @@ from types import MappingProxyType
 from typing import Any, Iterable, Sequence, Type
 
 
+__all__ = [
+    "Extends",
+    "Verbatim",
+    "ReturnElement",
+    "ReturnElements",
+    "Snippet",
+    "CypherGlue",
+]
+
+
 class Extends:
     """Return-element for extending a node/structure with `name`, ex.: "RETURN name { elements.... } AS key"."""
 
