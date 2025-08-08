@@ -583,41 +583,41 @@ class CypherGlue:
 
             # Nested objects with property extensions
             >>> render_return_clause([
-            ...     ("study", ("study_value", (
+            ...     ("script", ("script_value", (
             ...         ".*",
-            ...         ("uid", "study_root.uid"),
-            ...         ("version", ("study_version", (
+            ...         ("uid", "script_root.uid"),
+            ...         ("version", ("script_version", (
             ...             ".status",
             ...             ".version"
             ...         )))
             ...     )))
             ... ])
             'RETURN DISTINCT
-                study_value {
+                script_value {
                     .*,
-                    uid: study_root.uid,
-                    version: study_version {
+                    uid: script_root.uid,
+                    version: script_version {
                         .status,
                         .version
                     }
-                } AS study'
+                } AS script'
 
         # Amending existing objects
         >>> render_return_clause([
-        ...     ("study", ("study_value", (".*",))),
-        ...     ("study.version", ("study_version", (".status",))),
-        ...     ("study.version.amendment", {"amended": True})
+        ...     ("script", ("script_value", (".*",))),
+        ...     ("script.version", ("script_version", (".status",))),
+        ...     ("script.version.amendment", {"amended": True})
         ... ])
         'RETURN DISTINCT
-            study_value {
+            script_value {
                 .*,
-                version: study_version {
+                version: script_version {
                     .status,
                     amendment: {
                         amended: true
                     }
                 }
-            } AS study'
+            } AS script'
 
         Returns:
             str: Formatted Cypher RETURN clause string
