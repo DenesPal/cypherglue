@@ -1,7 +1,7 @@
 [project]
 name = "cypher-glue"
 version = "0.1.0"
-description = "A reusable Cypher query composer that joins reusable query fragments with a little care."
+description = "A Cypher query composer that joins reusable query fragments with a little care."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
@@ -13,5 +13,19 @@ packages = { find = { where = ["src"] } }
 
 [dependency-groups]
 dev = [
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "pylint>=3.3.8",
+    "pytest>=8.4.1",
     "ruff>=0.12.7",
 ]
+
+[project.optional-dependencies]
+jupyter = ["notebook"]
+
+[tool.isort]
+profile = 'black'
+src_paths = ['src', 'tests']
+
+[tool.pylint.'FORMAT']
+max-line-length = 120
