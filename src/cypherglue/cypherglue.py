@@ -1,22 +1,21 @@
-"""A reusable Cypher query composer that joins reusable query fragments with a little care."""
-
 import itertools
 import re
 import textwrap
+import warnings
 from collections.abc import Mapping, Set
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Iterable, Sequence, Type
 
 
-__all__ = [
-    "Extends",
-    "Verbatim",
-    "ReturnElement",
-    "ReturnElements",
-    "Snippet",
-    "CypherGlue",
-]
+# Cypher comparator operator aliases
+CYPHER_COMPARATOR_OPERATOR_ALIAS_MAP = {
+    "$eq": "=",
+    "$ne": "<>",
+    "$gt": ">",
+    "$lt": "<",
+    "$in": "IN",
+}
 
 
 @dataclass(frozen=True)
@@ -31,9 +30,9 @@ class Extends:
 class Verbatim:
     """Verbatim Cypher expression
 
-    As a ReturnElement for returning a literal key, ex.: `(".*", Verbatim)` or `(".*", Verbatim(".*"))`,
+    A ReturnElement for returning a literal key, ex.: `(".*", Verbatim)` or `(".*", Verbatim(".*"))`,
     renders as ".*" only.
-    As filter expression: `filter_by={"movie": Verbatim("NOT (movie)<-[:REVIEWED]-()")}`.
+    A filter expression: `filter_by={"movie": Verbatim("NOT (movie)<-[:REVIEWED]-()")}`.
     """
 
     expression: str
@@ -43,14 +42,13 @@ class Verbatim:
 
 
 ReturnElement = (
-    Extends
-    | Verbatim
-    | Sequence[str | tuple[str, "ReturnElement"]]
-    | Mapping[str, "ReturnElement"]
-    | Any
+        Extends
+        | Verbatim
+        | Sequence[str | tuple[str, "ReturnElement"]]
+        | Mapping[str, "ReturnElement"]
+        | Any
 )
 ReturnElements = Sequence[str | tuple[str, ReturnElement]] | Mapping[str, ReturnElement]
-
 
 # to split at dots: ".foo.bar..baz" to ['.foo', 'bar', '.baz']
 _CHOP_SPECKLED_PATH = re.compile(r"(?<!^)(?<!\.)\.")
@@ -86,18 +84,18 @@ class Snippet:
     allow_pagination: bool = True
 
     def __init__(
-        self,
-        name: str | None = None,
-        query: str | None = None,
-        *,
-        returns: ReturnElements | None = None,
-        labels: Mapping[str, str] | None = None,
-        requires: Sequence[str] | None = None,
-        defines: Sequence[str] | None = None,
-        parameters: Sequence[str] | None = None,
-        always: bool | None = None,
-        allow_filtering: bool | None = None,
-        allow_pagination: bool | None = None,
+            self,
+            name: str | None = None,
+            query: str | None = None,
+            *,
+            returns: ReturnElements | None = None,
+            labels: Mapping[str, str] | None = None,
+            requires: Sequence[str] | None = None,
+            defines: Sequence[str] | None = None,
+            parameters: Sequence[str] | None = None,
+            always: bool | None = None,
+            allow_filtering: bool | None = None,
+            allow_pagination: bool | None = None,
     ):
         """__init__ to preserve default values of class properties."""
 
@@ -186,7 +184,7 @@ class Snippet:
         return replace(self, **kwargs)
 
     def render(
-        self, params: Mapping[str, Any] | None = None
+            self, params: Mapping[str, Any] | None = None
     ) -> tuple[str, Mapping[str, Any], "ReturnElements"]:
         """Render the snippet's Cypher fragment, applying label substitutions."""
         # pylint: disable=unused-argument
@@ -261,16 +259,16 @@ class CypherGlue:
 
         _register(snippet)
 
-        return snippet_or_name  # Return original class for decorator to work
+        return snippet_or_name  # Return the original class for decorator to work
 
     def render(
-        self,
-        expand: Iterable[str] | None = None,
-        params: Mapping[str, Any] | None = None,
-        filter_by: Mapping[str, Mapping[str, Any]] | None = None,
-        order_by: Iterable[str] | Iterable[tuple[str, str]] | None = None,
-        skip: int = 0,
-        limit: int = 0,
+            self,
+            expand: Iterable[str] | None = None,
+            params: Mapping[str, Any] | None = None,
+            filter_by: Mapping[str, Mapping[str, Any]] | None = None,
+            order_by: Iterable[str] | Iterable[tuple[str, str]] | None = None,
+            skip: int = 0,
+            limit: int = 0,
     ) -> tuple[str, dict[str, Any]]:
         """
         Builds the Cypher query and parameters.
@@ -289,6 +287,14 @@ class CypherGlue:
         expand = dict.fromkeys(expand or []).keys()
         params = MappingProxyType(params or {})
         filter_by = filter_by or {}
+        if isinstance(order_by, Mapping):
+            raise TypeError(
+                "order_by mapping type is not supported"
+            )  # due to unstable order of elements
+        if isinstance(order_by, set):
+            raise TypeError(
+                "order_by set type is not supported"
+            )  # due to unstable order of elements
         order_by = dict(
             (item, "ASC") if isinstance(item, str) else (item[0], item[1].upper())
             for item in order_by or []
@@ -304,6 +310,9 @@ class CypherGlue:
                 item[0] if isinstance(item, tuple) else item for item in order_by
             ).keys(),
         )
+
+        if not selected_snippets:
+            raise RuntimeError("No snippets selected, provide expand parameter")
 
         # Build query string
 
@@ -323,9 +332,7 @@ class CypherGlue:
                 # include rendered query piece
                 query_parts.append(query)
                 # query variables defined by the query fragment
-                available_vars.update(
-                    snippet.defines
-                )
+                available_vars.update(snippet.defines)
             # added/updated query parameters
             final_params.update(params_update)
 
@@ -339,7 +346,7 @@ class CypherGlue:
                 returns_it = filter(lambda x: x and x != "*", returns)
             return_elements.extend(returns_it)
 
-            # Append WHERE clause if some filter variables are already defined
+            # Append the WHERE clause if some filter variables are already defined
             if snippet.allow_filtering and remaining_filters:
                 filter_clause, filter_params = self._render_filter_clauses(
                     remaining_filters, available_vars
@@ -349,7 +356,11 @@ class CypherGlue:
                     final_params.update(filter_params)
 
             # Append ORDER BY, SKIP and LIMIT clauses if applicable (but only if done with filtering)
-            if not remaining_filters and snippet.allow_pagination and order_by:
+            if (
+                    not remaining_filters
+                    and snippet.allow_pagination
+                    and (order_by or skip or limit)
+            ):
                 order_clause = self._render_order_pagination_clauses(
                     order_by, available_vars, skip, limit
                 )
@@ -369,15 +380,15 @@ class CypherGlue:
                 final_params.update(filter_params)
 
             if remaining_filters:
-                raise Warning(
-                    "Some query variables used in filters are probably not defined: "
-                    + ", ".join(remaining_filters.keys())
+                warnings.warn(
+                    f"Some query variables used in filters are probably not defined: {', '.join(remaining_filters.keys())}",
+                    RuntimeWarning,
                 )
 
         # Add ordering-pagination clause if not added before
         if order_by or skip or limit:
             if order_clause := self._render_order_pagination_clauses(
-                order_by, available_vars, skip, limit
+                    order_by, available_vars, skip, limit
             ):
                 query_parts.append(order_clause)
 
@@ -390,10 +401,10 @@ class CypherGlue:
         return full_query, final_params
 
     def _select_snippets(
-        self,
-        expand: Iterable[str],
-        filter_keys: Iterable[str],
-        order_keys: Iterable[str],
+            self,
+            expand: Iterable[str],
+            filter_keys: Iterable[str],
+            order_keys: Iterable[str],
     ) -> tuple[Snippet, ...]:
         if "all" in expand:
             # requested rendering of all snippets
@@ -437,8 +448,9 @@ class CypherGlue:
             for var in missing_vars:
                 if snippets := self._vars_to_snippet.get(var):
                     if len(snippets) > 1:
-                        raise Warning(
-                            f"Multiple Snippet define variable '{var}', picking first registered."
+                        warnings.warn(
+                            f"Multiple Snippet define variable '{var}', picking first registered.",
+                            RuntimeWarning,
                         )
                     found_snippets_names.add(snippets[0].name)
 
@@ -464,7 +476,7 @@ class CypherGlue:
 
     @staticmethod
     def _render_filter_clauses(
-        filter_by: dict[str, Mapping[str, Any]], available_vars: set[str] | None
+            filter_by: dict[str, Mapping[str, Any]], available_vars: set[str] | None
     ) -> tuple[str | None, dict | None]:
         """
         Constructs a WHERE clause for filters whose variable is available,
@@ -483,15 +495,9 @@ class CypherGlue:
                 continue  # Variable not yet available for filtering
 
             for op, param_value in expression.items():
-                cypher_op = {
-                    "$eq": "=",
-                    "$ne": "<>",
-                    "$gt": ">",
-                    "$lt": "<",
-                    "$in": "IN",
-                }.get(op, op)
+                cypher_op = CYPHER_COMPARATOR_OPERATOR_ALIAS_MAP.get(op, op)
 
-                param_name = f"_filter_{filter_key.replace('.', '_')}_{i}"
+                param_name = f"_filter_{filter_key.replace('.', '__')}_{i}"
                 clauses.append(f"{filter_key} {cypher_op} ${param_name}")
                 params[param_name] = param_value
 
@@ -504,10 +510,10 @@ class CypherGlue:
 
     @staticmethod
     def _render_order_pagination_clauses(
-        order_by: Mapping[str, str],
-        available_vars: set[str] | None,
-        skip: int,
-        limit: int,
+            order_by: Mapping[str, str],
+            available_vars: set[str] | None,
+            skip: int,
+            limit: int,
     ) -> str | None:
         """Constructs an ORDER BY clause if all required variables are available or `available_vars` is None."""
 
@@ -535,9 +541,11 @@ class CypherGlue:
             query_parts.append(", ".join(order_clauses))
 
         if skip:
+            # TODO add SKIP to query params
             query_parts.append(f"SKIP {skip:d}")
 
         if limit:
+            # TODO add LIMIT to query params
             query_parts.append(f"LIMIT {limit:d}")
 
         return " ".join(query_parts)
@@ -641,11 +649,11 @@ class CypherGlue:
             return str(value)
 
         def render(
-            items,
-            level: int = 1,
-            indent: int = 4,
-            path: str = "",
-            amendments: Mapping | None = None,
+                items,
+                level: int = 1,
+                indent: int = 4,
+                path: str = "",
+                amendments: Mapping | None = None,
         ) -> list[str]:
             lines: list[str] = []
             spacing = " " * indent * level
