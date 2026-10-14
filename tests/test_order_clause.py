@@ -29,3 +29,11 @@ def test_render_order_clause(order_by, available, skip, limit, expected):
 def test_render_order_clause_invalid_direction_raises():
     with pytest.raises(ValueError, match="Invalid order direction"):
         CypherGlue._render_order_pagination_clauses({"a.b": "UP"}, {"a"}, 0, 0)
+
+
+@pytest.mark.parametrize(
+    "key", ["a.b DESC, a.c", "a.b; MATCH (n) DETACH DELETE n", "a..b"]
+)
+def test_render_order_clause_invalid_key_raises(key):
+    with pytest.raises(ValueError, match="Invalid order key"):
+        CypherGlue._render_order_pagination_clauses({key: "ASC"}, None, 0, 0)

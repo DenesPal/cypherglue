@@ -17,6 +17,28 @@ CYPHER_COMPARATOR_OPERATOR_ALIAS_MAP = {
     "$in": "IN",
 }
 
+# Cypher comparator operators accepted in filter expressions (besides the aliases above)
+CYPHER_COMPARATOR_OPERATORS = frozenset(
+    {
+        *CYPHER_COMPARATOR_OPERATOR_ALIAS_MAP.values(),
+        ">=",
+        "<=",
+        "=~",
+        "STARTS WITH",
+        "ENDS WITH",
+        "CONTAINS",
+    }
+)
+
+# Filter and order keys: a variable optionally followed by property names, ex.: "movie.released"
+_PROPERTY_PATH = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
+
+
+def _validate_property_path(key: str, usage: str) -> None:
+    """Raises ValueError unless `key` is a plain variable or property path, as it is rendered into the query."""
+    if not isinstance(key, str) or not _PROPERTY_PATH.fullmatch(key):
+        raise ValueError(f"Invalid {usage} key: {key!r}")
+
 
 @dataclass(frozen=True)
 class Extends:
@@ -490,12 +512,18 @@ class CypherGlue:
         for filter_key, expression in list(filter_by.items()):
             i = 0
 
+            _validate_property_path(filter_key, "filter")
+
             var_name = filter_key.split(".")[0]
             if available_vars is not None and var_name not in available_vars:
                 continue  # Variable not yet available for filtering
 
             for op, param_value in expression.items():
                 cypher_op = CYPHER_COMPARATOR_OPERATOR_ALIAS_MAP.get(op, op)
+                if cypher_op not in CYPHER_COMPARATOR_OPERATORS:
+                    raise ValueError(
+                        f"Invalid filter operator for '{filter_key}': {op!r}"
+                    )
 
                 param_name = f"_filter_{filter_key.replace('.', '__')}_{i}"
                 clauses.append(f"{filter_key} {cypher_op} ${param_name}")
@@ -526,6 +554,7 @@ class CypherGlue:
         order_clauses = []
 
         for key, direction in order_by.items():
+            _validate_property_path(key, "order")
             if direction not in {"ASC", "DESC"}:
                 raise ValueError(f"Invalid order direction for '{key}': '{direction}'")
 
