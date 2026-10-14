@@ -383,11 +383,12 @@ class CypherGlue:
                     and snippet.allow_pagination
                     and (order_by or skip or limit)
             ):
-                order_clause = self._render_order_pagination_clauses(
+                order_clause, order_params = self._render_order_pagination_clauses(
                     order_by, available_vars, skip, limit
                 )
                 if order_clause:
                     query_parts.append(order_clause)
+                    final_params.update(order_params)
                     # the ordering-pagination clause has been added
                     order_by = None
                     skip, limit = None, None
@@ -409,10 +410,12 @@ class CypherGlue:
 
         # Add ordering-pagination clause if not added before
         if order_by or skip or limit:
-            if order_clause := self._render_order_pagination_clauses(
-                    order_by, available_vars, skip, limit
-            ):
+            order_clause, order_params = self._render_order_pagination_clauses(
+                order_by, available_vars, skip, limit
+            )
+            if order_clause:
                 query_parts.append(order_clause)
+                final_params.update(order_params)
 
         # Construct the RETURN statement
         if return_elements:
@@ -543,14 +546,17 @@ class CypherGlue:
             available_vars: set[str] | None,
             skip: int,
             limit: int,
-    ) -> str | None:
-        """Constructs an ORDER BY clause if all required variables are available or `available_vars` is None."""
+    ) -> tuple[str | None, dict[str, int] | None]:
+        """
+        Constructs an ORDER BY / SKIP / LIMIT clause if all required variables are available
+        or `available_vars` is None. SKIP and LIMIT values are passed as query parameters.
+        """
 
         if available_vars is not None:
             required_vars = set(key.split(".", 1)[0] for key in order_by.keys())
             if not required_vars.issubset(available_vars):
                 # Not all variables are available yet
-                return None
+                return None, None
 
         order_clauses = []
 
@@ -562,6 +568,7 @@ class CypherGlue:
             order_clauses.append(f"{key} {direction}")
 
         query_parts = []
+        params = {}
 
         if order_clauses or skip or limit:
             query_parts.append("WITH DISTINCT *")
@@ -571,14 +578,21 @@ class CypherGlue:
             query_parts.append(", ".join(order_clauses))
 
         if skip:
-            # TODO add SKIP to query params
-            query_parts.append(f"SKIP {skip:d}")
+            params["_skip"] = CypherGlue._validate_pagination_value(skip, "skip")
+            query_parts.append("SKIP $_skip")
 
         if limit:
-            # TODO add LIMIT to query params
-            query_parts.append(f"LIMIT {limit:d}")
+            params["_limit"] = CypherGlue._validate_pagination_value(limit, "limit")
+            query_parts.append("LIMIT $_limit")
 
-        return " ".join(query_parts)
+        return " ".join(query_parts), params
+
+    @staticmethod
+    def _validate_pagination_value(value: int, name: str) -> int:
+        """Raises ValueError unless `value` is a non-negative integer."""
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"Invalid {name} value: {value!r}")
+        return value
 
     @staticmethod
     def render_return_clause(items: ReturnElements, *, distinct: bool = True) -> str:
