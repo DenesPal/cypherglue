@@ -26,6 +26,12 @@ from cypherglue import CypherGlue
             "WHERE movie.title = $_filter_movie__title_0",
             {"_filter_movie__title_0": "Hello"},
         ),
+        (  # several operators on the same key get distinct parameters
+            {"movie.released": {"$gt": 1980, "$lt": 2000}},
+            {"movie"},
+            "WHERE movie.released > $_filter_movie__released_0 AND movie.released < $_filter_movie__released_1",
+            {"_filter_movie__released_0": 1980, "_filter_movie__released_1": 2000},
+        ),
         (  # when remaining filters rendered at the end regardless of the availability of variables
             {"movie.title": {"$in": ["Hello", "Alice"]}},
             None,

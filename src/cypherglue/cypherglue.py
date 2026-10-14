@@ -528,6 +528,7 @@ class CypherGlue:
                 param_name = f"_filter_{filter_key.replace('.', '__')}_{i}"
                 clauses.append(f"{filter_key} {cypher_op} ${param_name}")
                 params[param_name] = param_value
+                i += 1
 
                 filter_by.pop(filter_key, None)
 
