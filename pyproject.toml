@@ -34,3 +34,16 @@ src_paths = ['src', 'tests']
 
 [tool.pylint.'FORMAT']
 max-line-length = 120
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["cypherglue"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
