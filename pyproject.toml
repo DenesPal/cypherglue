@@ -21,6 +21,7 @@ dev = [
     "isort>=6.0.1",
     "pylint>=3.3.8",
     "pytest>=8.4.1",
+    "pytest-cov>=7.1.0",
     "ruff>=0.12.7",
 ]
 
@@ -33,3 +34,16 @@ src_paths = ['src', 'tests']
 
 [tool.pylint.'FORMAT']
 max-line-length = 120
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["cypherglue"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

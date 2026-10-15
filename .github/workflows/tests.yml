@@ -5,13 +5,60 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
         run: uv sync --locked --group dev
-      - name: Run tests
-        run: uv run pytest -q
+      - name: Run tests with coverage
+        run: >
+          uv run pytest -q
+          --junitxml=reports/junit.xml
+          --cov --cov-report=term
+          --cov-report=xml:reports/coverage.xml
+          --cov-report=html:reports/htmlcov
+          --cov-report=markdown:reports/coverage.md
+      - name: Test results (names, pass rate, annotations)
+        if: ${{ !cancelled() }}
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: reports/junit.xml
+          check_name: Test results
+          # Fork PRs get a read-only token and cannot write checks/comments.
+          comment_mode: ${{ github.event.pull_request.head.repo.fork && 'off' || 'always' }}
+          check_run: ${{ !github.event.pull_request.head.repo.fork }}
+      - name: Coverage summary
+        if: ${{ !cancelled() && hashFiles('reports/coverage.md') != '' }}
+        run: |
+          {
+            echo "## Coverage"
+            echo
+            cat reports/coverage.md
+          } | tee reports/coverage-comment.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Coverage comment on PR
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork && hashFiles('reports/coverage.md') != '' }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          path: reports/coverage-comment.md
+      - name: Upload reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: reports/
+          if-no-files-found: ignore
