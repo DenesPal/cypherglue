@@ -7,13 +7,6 @@ import pytest
 from cypherglue import CypherGlue, Extends, Snippet
 
 
-class MinimalSnippet(Snippet):
-    """Stub Snippet for testing"""
-
-    def render(self, params=None):
-        return f"// {self.name}", {}, self.returns or (self.name,)
-
-
 @pytest.fixture(scope="session")
 def movies_query() -> CypherGlue:
     """Fixture returns a query for the Movie tutorial database"""
@@ -505,21 +498,21 @@ def test_render_warns_on_undefined_filters():
 
 def test_render_snippet_dependency_resolution():
     glue = CypherGlue()
-    glue.register(MinimalSnippet("a", defines=["x"]))
-    glue.register(MinimalSnippet("b", defines=["y"], requires=["x"]))
+    glue.register(Snippet("a", "MATCH (x:X)", defines=["x"], returns=["x"]))
+    glue.register(
+        Snippet("b", "MATCH (x)-->(y:Y)", defines=["y"], requires=["x"], returns=["y"])
+    )
 
     query, _ = glue.render(expand=["y"])
-    query_lines = query.split("\n")
-    assert "// a" in query_lines
-    assert "// b" in query_lines
+    assert query == "MATCH (x:X)\nMATCH (x)-->(y:Y)\nRETURN DISTINCT\n    x,\n    y"
 
 
 def test_render_snippet_with_star_return_includes_defined_vars():
     """When a Snippet returns a star, all defined variables rendered into RETURN clause"""
     glue = CypherGlue()
-    glue.register(Snippet(name="star", defines=["s"], returns=["*"]))
+    glue.register(Snippet(name="star", query="MATCH (s)", defines=["s"], returns=["*"]))
     query, _ = glue.render(expand=["star"])
-    assert "RETURN DISTINCT\n    s" in query
+    assert query == "MATCH (s)\nRETURN DISTINCT\n    s"
 
 
 def test_select_snippets_all_keyword():
