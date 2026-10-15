@@ -138,12 +138,13 @@ def test_renders_by_dependency(movies_query):
         MATCH (movie:Movie)
         MATCH (movie)<-[:PRODUCED]-(producer:Person)
         MATCH (producer)-[:FOLLOWS]->(followed:Person)
+        WITH movie, producer, COLLECT(followed) AS producer_follows
         RETURN DISTINCT
             movie {
                 .*,
                 producer: producer {
                     .*,
-                    follows: COLLECT(followed)
+                    follows: producer_follows
                 }
             } AS movie
     """
