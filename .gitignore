@@ -57,3 +57,6 @@ dmypy.json
 *.egg-info/
 dist/
 build/
+
+reports/
+.coverage
