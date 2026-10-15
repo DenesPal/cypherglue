@@ -113,7 +113,7 @@ def test_render_return_clause_demo():
                 version: study_version {
                     .status,
                     legs: {
-                        fingers.count,
+                        count: fingers.count,
                         count: 4
                     },
                     .version,
@@ -162,7 +162,7 @@ def test_render_return_clause_notations():
                     d: true,
                     a: false
                 },
-                plain,
+                plain: plain,
                 c: hi
             } AS z,
             3.19 AS w

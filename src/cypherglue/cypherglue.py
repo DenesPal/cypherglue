@@ -698,6 +698,7 @@ class CypherGlue:
                 indent: int = 4,
                 path: str = "",
                 amendments: Mapping | None = None,
+                projection: bool = False,
         ) -> list[str]:
             lines: list[str] = []
             spacing = " " * indent * level
@@ -744,6 +745,7 @@ class CypherGlue:
                                     indent=indent,
                                     path=subpath,
                                     amendments=amendments,
+                                    projection=bool(extends),
                                 )
                             )
                             lines.append(f"{spacing}}} AS {key}{comma}")
@@ -758,6 +760,7 @@ class CypherGlue:
                                     indent=indent,
                                     path=subpath,
                                     amendments=amendments,
+                                    projection=bool(extends),
                                 )
                             )
                             lines.append(f"{spacing}}}{comma}")
@@ -779,6 +782,9 @@ class CypherGlue:
                 # string literal, outside mapping or key/value tuple, ex.: "*", ".*", or ".uid"
                 else:
                     item = to_str(item)
+                    if level > 1 and not projection and not item.startswith((".", "*")):
+                        # a plain map entry needs a key: name it the way a projection would, "a.b" -> "b: a.b"
+                        item = f"{item.rsplit('.', 1)[-1]}: {item}"
                     lines.append(f"{spacing}{item}{comma}")
 
             return lines
