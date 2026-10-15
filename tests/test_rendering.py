@@ -322,7 +322,7 @@ def test_renders_pagination(movies_query):
         == dedent(
             """
         MATCH (movie:Movie)
-        WITH DISTINCT * SKIP 10 LIMIT 42
+        WITH DISTINCT * SKIP $_skip LIMIT $_limit
         MATCH (movie)<-[:WROTE]-(writer:Person)
         RETURN DISTINCT
             movie {
@@ -332,7 +332,7 @@ def test_renders_pagination(movies_query):
     """
         ).strip()
     )
-    assert params == {}
+    assert params == {"_skip": 10, "_limit": 42}
 
 
 def test_renders_pagination_with_ordering(movies_query):
@@ -345,7 +345,7 @@ def test_renders_pagination_with_ordering(movies_query):
         == dedent(
             """
         MATCH (movie:Movie)
-        WITH DISTINCT * ORDER BY movie.title ASC SKIP 3
+        WITH DISTINCT * ORDER BY movie.title ASC SKIP $_skip
         MATCH (movie)<-[:WROTE]-(writer:Person)
         RETURN DISTINCT
             movie {
@@ -355,7 +355,7 @@ def test_renders_pagination_with_ordering(movies_query):
     """
         ).strip()
     )
-    assert params == {}
+    assert params == {"_skip": 3}
 
 
 def test_renders_pagination_with_orderings(movies_query):
@@ -369,7 +369,7 @@ def test_renders_pagination_with_orderings(movies_query):
             """
         MATCH (movie:Movie)
         MATCH (movie)<-[:WROTE]-(writer:Person)
-        WITH DISTINCT * ORDER BY writer.name ASC, movie.title ASC LIMIT 3
+        WITH DISTINCT * ORDER BY writer.name ASC, movie.title ASC LIMIT $_limit
         RETURN DISTINCT
             movie {
                 .*,
@@ -378,7 +378,7 @@ def test_renders_pagination_with_orderings(movies_query):
     """
         ).strip()
     )
-    assert params == {}
+    assert params == {"_limit": 3}
 
 
 def test_renders_pagination_after_filters_1(movies_query):
@@ -396,7 +396,7 @@ def test_renders_pagination_after_filters_1(movies_query):
         MATCH (movie:Movie)
         MATCH (movie)<-[:WROTE]-(writer:Person)
         WHERE writer.name STARTS WITH $_filter_writer__name_0
-        WITH DISTINCT * SKIP 10 LIMIT 5
+        WITH DISTINCT * SKIP $_skip LIMIT $_limit
         RETURN DISTINCT
             movie {
                 .*,
@@ -405,7 +405,7 @@ def test_renders_pagination_after_filters_1(movies_query):
     """
         ).strip()
     )
-    assert params == {"_filter_writer__name_0": "Aaron"}
+    assert params == {"_filter_writer__name_0": "Aaron", "_skip": 10, "_limit": 5}
 
 
 def test_renders_pagination_after_filters_2(movies_query):
@@ -428,7 +428,7 @@ def test_renders_pagination_after_filters_2(movies_query):
         WHERE movie.released < $_filter_movie__released_0
         MATCH (movie)<-[:WROTE]-(writer:Person)
         WHERE writer.name STARTS WITH $_filter_writer__name_0
-        WITH DISTINCT * ORDER BY movie.title ASC SKIP 10 LIMIT 5
+        WITH DISTINCT * ORDER BY movie.title ASC SKIP $_skip LIMIT $_limit
         RETURN DISTINCT
             movie {
                 .*,
@@ -438,6 +438,8 @@ def test_renders_pagination_after_filters_2(movies_query):
         ).strip()
     )
     assert params == {
+        "_skip": 10,
+        "_limit": 5,
         "_filter_movie__released_0": 1999,
         "_filter_writer__name_0": "Aaron",
     }
@@ -464,7 +466,7 @@ def test_render_with_params_passthrough(movies_query):
         WHERE movie.released < $_filter_movie__released_0
         MATCH (movie)<-[:WROTE]-(writer:Person)
         WHERE writer.name STARTS WITH $_filter_writer__name_0
-        WITH DISTINCT * ORDER BY movie.title ASC SKIP 10 LIMIT 5
+        WITH DISTINCT * ORDER BY movie.title ASC SKIP $_skip LIMIT $_limit
         RETURN DISTINCT
             movie {
                 .*,
@@ -474,6 +476,8 @@ def test_render_with_params_passthrough(movies_query):
         ).strip()
     )
     assert params == {
+        "_skip": 10,
+        "_limit": 5,
         "_filter_movie__released_0": 1999,
         "_filter_writer__name_0": "Aaron",
         "hello": "Mulholland drive",

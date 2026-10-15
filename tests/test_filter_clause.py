@@ -26,6 +26,12 @@ from cypherglue import CypherGlue
             "WHERE movie.title = $_filter_movie__title_0",
             {"_filter_movie__title_0": "Hello"},
         ),
+        (  # several operators on the same key get distinct parameters
+            {"movie.released": {"$gt": 1980, "$lt": 2000}},
+            {"movie"},
+            "WHERE movie.released > $_filter_movie__released_0 AND movie.released < $_filter_movie__released_1",
+            {"_filter_movie__released_0": 1980, "_filter_movie__released_1": 2000},
+        ),
         (  # when remaining filters rendered at the end regardless of the availability of variables
             {"movie.title": {"$in": ["Hello", "Alice"]}},
             None,
@@ -41,3 +47,39 @@ def test_render_filter_clauses(
     clause, params = CypherGlue._render_filter_clauses(filter_by, available_vars)
     assert clause == expected_clause
     assert params == expected_params
+
+
+@pytest.mark.parametrize(
+    "filter_key",
+    ["movie.title = '' OR 1=1 //", "movie title", "movie.", "1movie", "movie-title"],
+)
+def test_render_filter_clauses_invalid_key_raises(filter_key):
+    with pytest.raises(ValueError, match="Invalid filter key"):
+        CypherGlue._render_filter_clauses({filter_key: {"$eq": 1}}, None)
+
+
+@pytest.mark.parametrize("op", ["= 1 OR true OR movie.x =", "$nope", "IS NULL"])
+def test_render_filter_clauses_invalid_operator_raises(op):
+    with pytest.raises(ValueError, match="Invalid filter operator"):
+        CypherGlue._render_filter_clauses({"movie.title": {op: 1}}, None)
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        "=",
+        "<>",
+        ">",
+        "<",
+        ">=",
+        "<=",
+        "=~",
+        "IN",
+        "STARTS WITH",
+        "ENDS WITH",
+        "CONTAINS",
+    ],
+)
+def test_render_filter_clauses_accepts_operator(op):
+    clause, _ = CypherGlue._render_filter_clauses({"movie.title": {op: 1}}, None)
+    assert clause == f"WHERE movie.title {op} $_filter_movie__title_0"
